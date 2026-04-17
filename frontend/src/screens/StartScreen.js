@@ -7,7 +7,7 @@ import COLORS from '../constants/colors';
 import { useApp } from '../context/AppContext';
 
 export default function StartScreen({ navigation }) {
-  const { dispatch } = useApp();
+  const { state, dispatch } = useApp();
 
   const handleRole = (role) => {
     dispatch({ type: 'SET_ROLE', payload: role });
@@ -17,6 +17,16 @@ export default function StartScreen({ navigation }) {
       navigation.navigate('StudentLogin');
     }
   };
+
+  React.useEffect(() => {
+    if (state.isHydrated) {
+      if (state.userRole === 'teacher' && state.currentUser) {
+        navigation.replace('TeacherDashboard');
+      } else if (state.userRole === 'student' && state.studentData) {
+        navigation.replace('StudentHome');
+      }
+    }
+  }, [state.isHydrated, state.userRole, state.currentUser, state.studentData, navigation]);
 
   return (
     <SafeAreaView style={styles.safe}>

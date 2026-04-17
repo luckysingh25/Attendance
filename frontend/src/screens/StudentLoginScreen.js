@@ -6,15 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../constants/colors';
 import { useApp } from '../context/AppContext';
-
-// Mock student database
-const MOCK_STUDENTS = {
-  '2024001': { name: 'Aarav Patel', dob: '2003-05-15', course: 'B.Tech CSE', section: 'A' },
-  '2024002': { name: 'Priya Sharma', dob: '2003-08-22', course: 'B.Tech ECE', section: 'B' },
-  '2024003': { name: 'Rohan Gupta', dob: '2004-01-10', course: 'BCA', section: 'A' },
-  '2024004': { name: 'Sneha Reddy', dob: '2003-11-03', course: 'B.Tech IT', section: 'C' },
-  '2024005': { name: 'Vikram Singh', dob: '2003-03-28', course: 'B.Tech CSE', section: 'A' },
-};
+import { loginStudent } from '../services/api';
+import { API_BASE_URL } from '../config/api';
 
 export default function StudentLoginScreen({ navigation }) {
   const { dispatch } = useApp();
@@ -35,45 +28,28 @@ export default function StudentLoginScreen({ navigation }) {
     }
 
     setLoading(true);
-    // Simulate API call
-    await new Promise((r) => setTimeout(r, 1000));
-
-    // Check mock database or generate data for any ERP
-    let studentInfo = MOCK_STUDENTS[erp.trim()];
-
-    if (studentInfo) {
-      // Validate DOB for known students
-      if (dob.trim() !== studentInfo.dob) {
-        setLoading(false);
-        setError('Invalid date of birth for this ERP');
-        return;
-      }
-    } else {
-      // Generate mock student for any ERP (for demo flexibility)
-      studentInfo = {
-        name: `Student ${erp.trim()}`,
-        dob: dob.trim(),
-        course: 'B.Tech',
-        section: 'A',
+    try {
+      const data = await loginStudent(erp.trim(), dob.trim());
+      
+      const studentData = {
+        ...data.student,
+        avatarColor: COLORS.avatarColors[
+          parseInt(erp.trim().slice(-1), 10) % COLORS.avatarColors.length
+        ] || COLORS.primary,
       };
+
+      dispatch({ type: 'SET_TOKEN', payload: data.token });
+      dispatch({ type: 'SET_STUDENT_DATA', payload: studentData });
+      navigation.replace('StudentHome');
+    } catch (err) {
+      if (err.message === 'Network request failed') {
+        setError('Network failed. Check WiFi or backend server.');
+      } else {
+        setError(err.message || 'Login failed. Check ERP and DOB.');
+      }
+    } finally {
+      setLoading(false);
     }
-
-    const studentData = {
-      name: studentInfo.name,
-      erp: erp.trim(),
-      dob: studentInfo.dob,
-      course: studentInfo.course,
-      section: studentInfo.section,
-      // Generate avatar color from ERP
-      avatarColor: COLORS.avatarColors[
-        parseInt(erp.trim().slice(-1), 10) % COLORS.avatarColors.length
-      ],
-    };
-
-    dispatch({ type: 'SET_STUDENT_DATA', payload: studentData });
-    dispatch({ type: 'SET_CURRENT_USER', payload: { name: studentData.name, erp: studentData.erp } });
-    setLoading(false);
-    navigation.replace('StudentHome');
   };
 
   return (
@@ -105,7 +81,7 @@ export default function StudentLoginScreen({ navigation }) {
             {/* Demo hint */}
             <View style={styles.hintBox}>
               <Text style={styles.hintTitle}>Demo Credentials</Text>
-              <Text style={styles.hintText}>ERP: 2024001 · DOB: 2003-05-15</Text>
+              <Text style={styles.hintText}>ERP: 20241001 · DOB: 2003-06-12</Text>
             </View>
 
             {/* Error */}

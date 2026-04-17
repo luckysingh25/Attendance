@@ -6,6 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import QRCode from 'react-native-qrcode-svg';
 import COLORS from '../constants/colors';
+import { useApp } from '../context/AppContext';
+import { startSession } from '../services/api';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const QR_SIZE = Math.min(SCREEN_W * 0.7, 320);
@@ -20,23 +22,39 @@ function generateToken(length = 16) {
   return result;
 }
 
-function generateQRData() {
+function generateQRData(sessionId) {
   return JSON.stringify({
     eventId: 'FEST2026',
+    sessionId: sessionId || 'DEMO_SESSION',
     timestamp: Date.now(),
     token: generateToken(),
   });
 }
 
 export default function TeacherQRScreen({ navigation }) {
-  const [qrData, setQrData] = useState(generateQRData());
+  const { state, dispatch } = useApp();
+  const [qrData, setQrData] = useState(generateQRData(state.sessionId));
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
   const timerRef = useRef(null);
   const countdownRef = useRef(null);
 
   const refreshQR = useCallback(() => {
-    setQrData(generateQRData());
+    setQrData(generateQRData(state.sessionId));
     setCountdown(REFRESH_INTERVAL);
+  }, [state.sessionId]);
+
+  useEffect(() => {
+    const initSession = async () => {
+      try {
+        if (!state.sessionId) {
+          const data = await startSession('FEST2026');
+          dispatch({ type: 'SET_SESSION', payload: data.session.id });
+        }
+      } catch (err) {
+        console.error('Failed to start session:', err);
+      }
+    };
+    initSession();
   }, []);
 
   useEffect(() => {

@@ -1,14 +1,15 @@
 import React, { useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Platform,
-  Dimensions, BackHandler,
+  Dimensions, BackHandler, Image,
 } from 'react-native';
 import COLORS from '../constants/colors';
 import { useApp } from '../context/AppContext';
+import { markAttendance } from '../services/api';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-function LargeAvatar({ name, color }) {
+function LargeAvatar({ name, color, imageUrl }) {
   const initials = (name || 'S')
     .split(' ')
     .map((w) => w[0])
@@ -17,8 +18,12 @@ function LargeAvatar({ name, color }) {
     .slice(0, 2);
 
   return (
-    <View style={[styles.largeAvatar, { backgroundColor: color || COLORS.primary }]}>
-      <Text style={styles.largeAvatarText}>{initials}</Text>
+    <View style={[styles.largeAvatar, { backgroundColor: color || COLORS.primary, overflow: 'hidden' }]}>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} />
+      ) : (
+        <Text style={styles.largeAvatarText}>{initials}</Text>
+      )}
       <View style={styles.avatarRing} />
     </View>
   );
@@ -28,6 +33,27 @@ export default function VerificationScreen({ navigation, route }) {
   const { dispatch, state } = useApp();
   const studentData = route?.params?.studentData || {};
   const role = route?.params?.role || 'teacher';
+  const [marked, setMarked] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  useEffect(() => {
+    const performMarking = async () => {
+      if (role === 'student' && studentData.sessionId && studentData.eventId) {
+        try {
+          const res = await markAttendance(studentData.sessionId, studentData.eventId);
+          if (res.success) {
+            setMarked(true);
+          }
+        } catch (err) {
+          setError(err.message || 'Verification failed');
+        }
+      } else {
+        // Fallback for teacher role or manual entry without backend session
+        setMarked(true);
+      }
+    };
+    performMarking();
+  }, [role, studentData.sessionId, studentData.eventId]);
 
   const avatarColor =
     studentData.avatarColor ||
@@ -104,23 +130,41 @@ export default function VerificationScreen({ navigation, route }) {
     <View style={styles.container}>
       {/* Status bar - Verification active indicator */}
       <View style={styles.statusBar}>
-        <View style={styles.statusDot} />
-        <Text style={styles.statusText}>IDENTITY VERIFICATION</Text>
+        <View style={[styles.statusDot, marked && { backgroundColor: COLORS.success }]} />
+        <Text style={[styles.statusText, marked && { color: COLORS.success }]}>
+          {marked ? 'SUCCESSFULLY VERIFIED' : 'VERIFYING IDENTITY...'}
+        </Text>
       </View>
 
       {/* Student Photo Area (full top section) */}
       <View style={styles.photoSection}>
-        <LargeAvatar name={studentData.name} color={avatarColor} />
+        <LargeAvatar 
+          name={studentData.name} 
+          color={avatarColor} 
+          imageUrl={studentData.photoUrl} 
+        />
       </View>
 
       {/* Info Card */}
       <View style={styles.infoSection}>
         <View style={styles.infoCard}>
           {/* Verified badge */}
-          <View style={styles.verifiedBadge}>
-            <Text style={styles.verifiedIcon}>✓</Text>
-            <Text style={styles.verifiedText}>QR Verified</Text>
-          </View>
+          {marked ? (
+            <View style={styles.verifiedBadge}>
+              <Text style={styles.verifiedIcon}>✓</Text>
+              <Text style={styles.verifiedText}>Verified</Text>
+            </View>
+          ) : error ? (
+            <View style={[styles.verifiedBadge, { backgroundColor: COLORS.dangerLight }]}>
+              <Text style={[styles.verifiedIcon, { color: COLORS.danger }]}>✕</Text>
+              <Text style={[styles.verifiedText, { color: COLORS.danger }]}>{error}</Text>
+            </View>
+          ) : (
+             <View style={[styles.verifiedBadge, { backgroundColor: COLORS.primaryLight }]}>
+              <Text style={[styles.verifiedIcon, { color: COLORS.primary }]}>●</Text>
+              <Text style={[styles.verifiedText, { color: COLORS.primary }]}>Processing...</Text>
+            </View>
+          )}
 
           {/* Name */}
           <Text style={styles.studentName}>

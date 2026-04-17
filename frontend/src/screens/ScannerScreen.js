@@ -94,7 +94,9 @@ export default function ScannerScreen({ navigation, route }) {
         course: state.studentData?.course || '',
         section: state.studentData?.section || '',
         avatarColor: state.studentData?.avatarColor,
+        photoUrl: state.studentData?.photoUrl,
         eventId: parsed.eventId || 'UNKNOWN',
+        sessionId: parsed.sessionId || '',
         token: parsed.token || '',
       };
 

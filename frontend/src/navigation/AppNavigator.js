@@ -9,6 +9,7 @@ import ScannerScreen from '../screens/ScannerScreen';
 import VerificationScreen from '../screens/VerificationScreen';
 import StudentLoginScreen from '../screens/StudentLoginScreen';
 import StudentHomeScreen from '../screens/StudentHomeScreen';
+import StudentScannerScreen from '../screens/StudentScannerScreen';
 import AttendanceHistoryScreen from '../screens/AttendanceHistoryScreen';
 
 const Stack = createNativeStackNavigator();
@@ -42,6 +43,7 @@ export default function AppNavigator() {
         component={StudentHomeScreen}
         options={{ gestureEnabled: false }}
       />
+      <Stack.Screen name="StudentScanner" component={StudentScannerScreen} />
 
       {/* Shared Screens */}
       <Stack.Screen name="Scanner" component={ScannerScreen} />

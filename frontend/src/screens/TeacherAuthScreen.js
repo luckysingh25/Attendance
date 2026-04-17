@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../constants/colors';
 import { useApp } from '../context/AppContext';
+import { loginTeacher, registerTeacher } from '../services/api';
 
 export default function TeacherAuthScreen({ navigation }) {
   const { state, dispatch } = useApp();
@@ -34,27 +35,18 @@ export default function TeacherAuthScreen({ navigation }) {
       setError('Password must be at least 4 characters');
       return;
     }
-    const exists = state.teachers.find(
-      (t) => t.email.toLowerCase() === email.trim().toLowerCase()
-    );
-    if (exists) {
-      setError('An account with this email already exists');
-      return;
-    }
 
     setLoading(true);
-    // Simulate API delay
-    await new Promise((r) => setTimeout(r, 800));
-
-    const teacher = {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: password,
-    };
-    dispatch({ type: 'ADD_TEACHER', payload: teacher });
-    dispatch({ type: 'SET_CURRENT_USER', payload: { name: teacher.name, email: teacher.email } });
-    setLoading(false);
-    navigation.replace('TeacherDashboard');
+    try {
+      const data = await registerTeacher(name.trim(), email.trim(), password);
+      dispatch({ type: 'SET_TOKEN', payload: data.token });
+      dispatch({ type: 'SET_CURRENT_USER', payload: { name: data.teacher.name, email: data.teacher.email } });
+      navigation.replace('TeacherDashboard');
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignIn = async () => {
@@ -65,20 +57,16 @@ export default function TeacherAuthScreen({ navigation }) {
     }
 
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 600));
-
-    const found = state.teachers.find(
-      (t) => t.email === email.trim().toLowerCase() && t.password === password
-    );
-    if (!found) {
+    try {
+      const data = await loginTeacher(email.trim(), password);
+      dispatch({ type: 'SET_TOKEN', payload: data.token });
+      dispatch({ type: 'SET_CURRENT_USER', payload: { name: data.teacher.name, email: data.teacher.email } });
+      navigation.replace('TeacherDashboard');
+    } catch (err) {
+      setError(err.message || 'Invalid email or password');
+    } finally {
       setLoading(false);
-      setError('Invalid email or password');
-      return;
     }
-
-    dispatch({ type: 'SET_CURRENT_USER', payload: { name: found.name, email: found.email } });
-    setLoading(false);
-    navigation.replace('TeacherDashboard');
   };
 
   const toggleMode = () => {

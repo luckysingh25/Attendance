@@ -1,12 +1,14 @@
 import React from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, Platform,
+  View, Text, TouchableOpacity, StyleSheet, Platform, Image, ActivityIndicator, Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadPhoto } from '../services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../constants/colors';
 import { useApp } from '../context/AppContext';
 
-function Avatar({ name, color, size = 72 }) {
+function Avatar({ name, color, size = 72, imageUrl }) {
   const initials = (name || 'S')
     .split(' ')
     .map((w) => w[0])
@@ -22,10 +24,15 @@ function Avatar({ name, color, size = 72 }) {
           height: size,
           borderRadius: size / 2,
           backgroundColor: color || COLORS.primary,
+          overflow: 'hidden',
         },
       ]}
     >
-      <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials}</Text>
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={{ width: size, height: size }} />
+      ) : (
+        <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials}</Text>
+      )}
     </View>
   );
 }
@@ -37,9 +44,39 @@ export default function StudentHomeScreen({ navigation }) {
     (l) => l.erp === student?.erp
   );
 
+  const [uploading, setUploading] = React.useState(false);
+
   const handleLogout = () => {
     dispatch({ type: 'LOGOUT' });
     navigation.reset({ index: 0, routes: [{ name: 'Start' }] });
+  };
+
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+
+      if (!result.canceled) {
+        setUploading(true);
+        const asset = result.assets[0];
+        const data = await uploadPhoto(student.erp, asset.uri, asset.mimeType);
+        
+        // Update local state with the new photo URL from backend
+        const updatedStudent = { ...student, photoUrl: data.photoUrl };
+        dispatch({ type: 'SET_STUDENT_DATA', payload: updatedStudent });
+        
+        Alert.alert('Success', 'Profile photo updated successfully');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', error.message || 'Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -48,11 +85,25 @@ export default function StudentHomeScreen({ navigation }) {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileTop}>
-            <Avatar
-              name={student?.name}
-              color={student?.avatarColor}
-              size={64}
-            />
+            <View style={styles.avatarWrap}>
+              <Avatar
+                name={student?.name}
+                color={student?.avatarColor}
+                size={70}
+                imageUrl={student?.photoUrl}
+              />
+              <TouchableOpacity 
+                style={styles.editPhotoIcon} 
+                onPress={handlePickImage}
+                disabled={uploading}
+              >
+                {uploading ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Text style={{ fontSize: 12 }}>📷</Text>
+                )}
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={styles.logoutBtn}
               onPress={handleLogout}
@@ -89,7 +140,7 @@ export default function StudentHomeScreen({ navigation }) {
           <TouchableOpacity
             style={styles.scanBtn}
             activeOpacity={0.85}
-            onPress={() => navigation.navigate('Scanner', { role: 'student' })}
+            onPress={() => navigation.navigate('StudentScanner', { role: 'student' })}
             id="btn-student-scan"
           >
             <Text style={styles.scanIcon}>📱</Text>
@@ -143,6 +194,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 14,
+  },
+  avatarWrap: {
+    position: 'relative',
+  },
+  editPhotoIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: COLORS.primary,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: COLORS.white,
   },
   avatar: {
     alignItems: 'center',
